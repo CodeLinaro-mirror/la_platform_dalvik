@@ -24,6 +24,10 @@ import junit.framework.TestCase;
 
 import org.xml.sax.helpers.ParserFactory;
 
+import java.util.Iterator;
+import java.util.Properties;
+import java.util.Map.Entry;
+
 @SuppressWarnings("deprecation")
 @TestTargetClass(ParserFactory.class)
 public class ParserFactoryTest extends TestCase {
@@ -34,14 +38,17 @@ public class ParserFactoryTest extends TestCase {
         args = { },
         notes = "Checks everything except META-INF case"
     )
-    public void testMakeParser() {
+    public void testMakeParser() throws ClassNotFoundException,
+            IllegalAccessException, InstantiationException {
+
+        System.clearProperty("org.xml.sax.parser");
+
         // Property not set at all
         try {
             ParserFactory.makeParser();
+            fail("expected NullPointerException was not thrown");
         } catch (NullPointerException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
 
         // Unknown class
@@ -49,10 +56,9 @@ public class ParserFactoryTest extends TestCase {
         
         try {
             ParserFactory.makeParser();
+            fail("expected ClassNotFoundException was not thrown");
         } catch (ClassNotFoundException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-accessible class
@@ -61,10 +67,9 @@ public class ParserFactoryTest extends TestCase {
         
         try {
             ParserFactory.makeParser();
+            fail("expected IllegalAccessException was not thrown");
         } catch (IllegalAccessException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-instantiable class
@@ -73,10 +78,9 @@ public class ParserFactoryTest extends TestCase {
         
         try {
             ParserFactory.makeParser();
+            fail("expected InstantiationException was not thrown");
         } catch (InstantiationException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-Parser class
@@ -85,21 +89,16 @@ public class ParserFactoryTest extends TestCase {
         
         try {
             ParserFactory.makeParser();
+            fail("expected ClassCastException was not thrown");
         } catch (ClassCastException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Good one, finally
         System.setProperty("org.xml.sax.parser",
                 "tests.api.org.xml.sax.support.DoNothingParser");
         
-        try {
-            ParserFactory.makeParser();
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
-        }
+        ParserFactory.makeParser();
         
     }
 
@@ -108,62 +107,54 @@ public class ParserFactoryTest extends TestCase {
         method = "makeParser",
         args = { String.class }
     )
-    public void testMakeParserString() {
+    public void testMakeParserString() throws ClassNotFoundException,
+            IllegalAccessException, InstantiationException {
         // No class
         try {
             ParserFactory.makeParser(null);
+            fail("expected NullPointerException was not thrown");
         } catch (NullPointerException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
 
         // Unknown class
         try {
             ParserFactory.makeParser("foo.bar.SAXParser");
+            fail("expected ClassNotFoundException was not thrown");
         } catch (ClassNotFoundException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-accessible class
         try {
             ParserFactory.makeParser(
                     "tests.api.org.xml.sax.support.NoAccessParser");
+            fail("expected IllegalAccessException was not thrown");
         } catch (IllegalAccessException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-instantiable class
         try {
             ParserFactory.makeParser(
                     "tests.api.org.xml.sax.support.NoInstanceParser");
+            fail("expected InstantiationException was not thrown");
         } catch (InstantiationException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Non-Parser class
         try {
             ParserFactory.makeParser(
                     "tests.api.org.xml.sax.support.NoSubclassParser");
+            fail("expected ClassCastException was not thrown");
         } catch (ClassCastException e) {
             // Expected
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
         }
         
         // Good one, finally
-        try {
-            ParserFactory.makeParser(
-                    "tests.api.org.xml.sax.support.DoNothingParser");
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
-        }
+        ParserFactory.makeParser(
+                "tests.api.org.xml.sax.support.DoNothingParser");
 
     }
 

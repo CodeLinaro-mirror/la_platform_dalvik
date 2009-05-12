@@ -17,6 +17,7 @@
 
 package tests.api.java.io;
 
+import dalvik.annotation.AndroidOnly;
 import dalvik.annotation.BrokenTest;
 import dalvik.annotation.TestLevel;
 import dalvik.annotation.TestTargetClass;
@@ -914,87 +915,98 @@ public class SerializationStressTest0 extends SerializationStressTest {
                 fail("ClassNotFoundException serializing data : " + e.getMessage());
             }
         }
-
+        
         @TestTargetNew(
             level = TestLevel.COMPLETE,
             notes = "Verifies serialization.",
             method = "!Serialization",
             args = {}
         )
-        @BrokenTest("Needs investigation. succeeds on android, fails on RI")
-        public void test_2_writeReplace() {
+        public void test_2_writeReplace_01() throws IOException {
             try {
-                boolean exception = false;
-                try {
-                    oos.writeObject(new WriteReplaceTestF(0, -1));
-                } catch (ObjectStreamException e) {
-                    exception = true;
-                }
-                assertTrue("Should throw ObjectStreamException", exception);
-                exception = false;
-                try {
-                    oos.writeObject(new WriteReplaceTestF(1, -1));
-                } catch (RuntimeException e) {
-                    exception = true;
-                }
-                assertTrue("Should throw RuntimeException", exception);
-                exception = false;
-                try {
-                    oos.writeObject(new WriteReplaceTestF(2, -1));
-                } catch (Error e) {
-                    exception = true;
-                }
-                assertTrue("Should throw Error", exception);
-
-                oos.writeObject(new WriteReplaceTestF(3, 0));
-                oos.writeObject(new WriteReplaceTestF(3, 1));
-                oos.writeObject(new WriteReplaceTestF(3, 2));
-                WriteReplaceTestF test = new WriteReplaceTestF(3, 3);
-                oos.writeObject(test);
-                oos.writeObject(test);
-                WriteReplaceTestF test2 = new WriteReplaceTestF(3, 4);
-                oos.writeObject(test2);
-                oos.writeObject(test2);
-                oos.close();
-                ois = new ObjectInputStream(loadStream());
-                try {
-                    ois.readObject();
-                } catch (WriteAbortedException e) {
-                }
-
-                exception = false;
-                try {
-                    ois.readObject();
-                } catch (ObjectStreamException e) {
-                    exception = true;
-                }
-                assertTrue("Expected ObjectStreamException", exception);
-                exception = false;
-                try {
-                    ois.readObject();
-                } catch (RuntimeException e) {
-                    exception = true;
-                }
-                assertTrue("Expected RuntimeException", exception);
-                exception = false;
-                try {
-                    ois.readObject();
-                } catch (Error e) {
-                    exception = true;
-                }
-                assertTrue("Expected Error", exception);
-
-                Object readE1 = ois.readObject();
-                Object readE2 = ois.readObject();
-                assertTrue("Replaced objects should be identical", readE1 == readE2);
-                Object readF1 = ois.readObject();
-                Object readF2 = ois.readObject();
-                assertTrue("Replaced resolved objects should be identical: "
-                        + readF1 + " " + readF2, readF1 == readF2);
-            } catch (IOException e) {
-                fail("IOException serializing data : " + e.getMessage());
-            } catch (ClassNotFoundException e) {
-                fail("ClassNotFoundException serializing data : " + e.getMessage());
+                oos.writeObject(new WriteReplaceTestF(0, -1));
+                fail("Should throw ObjectStreamException");
+            } catch (ObjectStreamException e) {
+                // expected
             }
+        }
+        
+        @TestTargetNew(
+                level = TestLevel.COMPLETE,
+                notes = "Verifies serialization.",
+                method = "!Serialization",
+                args = {}
+            )
+        public void test_2_writeReplace_02() throws IOException {
+            try {
+                oos.writeObject(new WriteReplaceTestF(1, -1));
+                fail("Should throw RuntimeException");
+            } catch (RuntimeException e) {
+                // expected
+            }
+        }
+        
+        @TestTargetNew(
+                level = TestLevel.COMPLETE,
+                notes = "Verifies serialization.",
+                method = "!Serialization",
+                args = {}
+            )
+        public void test_2_writeReplace_03() throws IOException {
+            try {
+                oos.writeObject(new WriteReplaceTestF(2, -1));
+                fail("Should throw Error");
+            } catch (Error e) {
+                // expected
+            }
+        }
+        
+        @TestTargetNew(
+                level = TestLevel.COMPLETE,
+                notes = "Verifies serialization.",
+                method = "!Serialization",
+                args = {}
+            )
+        public void test_2_writeReplace_04() throws IOException,
+                ClassNotFoundException {
+            oos.writeObject(new WriteReplaceTestF(3, 0));
+            oos.writeObject(new WriteReplaceTestF(3, 1));
+            oos.writeObject(new WriteReplaceTestF(3, 2));
+            WriteReplaceTestF test = new WriteReplaceTestF(3, 3);
+            oos.writeObject(test);
+            oos.writeObject(test);
+            WriteReplaceTestF test2 = new WriteReplaceTestF(3, 4);
+            oos.writeObject(test2);
+            oos.writeObject(test2);
+            oos.close();
+            ois = new ObjectInputStream(loadStream());
+            try {
+                ois.readObject();
+                fail("Expected InvalidObjectException");
+            } catch (InvalidObjectException e) {
+                // expected
+            }
+
+            try {
+                ois.readObject();
+                fail("Expected RuntimeException");
+            } catch (RuntimeException e) {
+                // expected
+            }
+
+            try {
+                ois.readObject();
+                fail("Expected Error");
+            } catch (Error e) {
+                // expected
+            }
+
+            Object readE1 = ois.readObject();
+            Object readE2 = ois.readObject();
+            assertTrue("Replaced objects should be identical", readE1 == readE2);
+            Object readF1 = ois.readObject();
+            Object readF2 = ois.readObject();
+            assertTrue("Replaced resolved objects should be identical: "
+                    + readF1 + " " + readF2, readF1 == readF2);
         }
 }

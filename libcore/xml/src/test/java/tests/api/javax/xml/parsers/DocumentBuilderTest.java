@@ -19,8 +19,11 @@ package tests.api.javax.xml.parsers;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.logging.Logger;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -31,6 +34,8 @@ import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.EntityReference;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.ErrorHandler;
@@ -41,7 +46,6 @@ import org.xml.sax.SAXParseException;
 import tests.api.org.xml.sax.support.MethodLogger;
 import tests.api.org.xml.sax.support.MockHandler;
 import tests.api.org.xml.sax.support.MockResolver;
-import dalvik.annotation.BrokenTest;
 import dalvik.annotation.KnownFailure;
 import dalvik.annotation.TestLevel;
 import dalvik.annotation.TestTargetClass;
@@ -274,9 +278,10 @@ public class DocumentBuilderTest extends TestCase {
         method = "parse",
         args = {java.io.File.class}
     )
-    @BrokenTest("Need to use XML file from correct location")
-    public void test_parseLjava_io_File() {
-        File f = new File("/tmp/xml_source/simple.xml");
+    @KnownFailure("d.getChildNodes returns an unexpected/strange #Text node")
+    public void test_parseLjava_io_File() throws IOException {
+        File f = resourceToTmpFile("/simple.xml");
+
         // case 1: Trivial use.
         try {
             Document d = db.parse(f);
@@ -317,8 +322,8 @@ public class DocumentBuilderTest extends TestCase {
         }
 
         // case 4: Try to parse incorrect xml file
+        f = resourceToTmpFile("/wrong.xml");
         try {
-            f = new File("/tmp/xml_source/wrong.xml");
             db.parse(f);
             fail("Expected SAXException was not thrown");
         } catch (IOException ioe) {
@@ -326,6 +331,22 @@ public class DocumentBuilderTest extends TestCase {
         } catch (SAXException sax) {
             // expected
         }
+    }
+
+    private File resourceToTmpFile(String path) throws IOException,
+            FileNotFoundException {
+        File f = File.createTempFile("out", ".xml");
+        f.deleteOnExit();
+        FileOutputStream out = new FileOutputStream(f);
+
+        InputStream xml = getClass().getResourceAsStream(path);
+        while (xml.available() > 0) {
+            out.write(xml.read());
+        }
+        out.flush();
+        out.close();
+        xml.close();
+        return f;
     }
 
     /**

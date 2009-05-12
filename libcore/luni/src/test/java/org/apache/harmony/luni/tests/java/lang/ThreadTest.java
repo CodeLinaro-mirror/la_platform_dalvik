@@ -22,14 +22,14 @@ import java.io.PrintStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.security.Permission;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 import dalvik.annotation.AndroidOnly;
-import dalvik.annotation.TestTargets;
+import dalvik.annotation.KnownFailure;
 import dalvik.annotation.TestLevel;
-import dalvik.annotation.TestTargetNew;
 import dalvik.annotation.TestTargetClass;
-
-import java.util.concurrent.Semaphore;
+import dalvik.annotation.TestTargetNew;
+import dalvik.annotation.TestTargets;
 
 @TestTargetClass(Thread.class) 
 public class ThreadTest extends junit.framework.TestCase {
@@ -147,6 +147,8 @@ public class ThreadTest extends junit.framework.TestCase {
     Thread st, ct, spinner;
 
     static boolean calledMySecurityManager = false;
+    
+    boolean wasInterrupted = false;
 
     /**
      * @tests java.lang.Thread#Thread()
@@ -602,10 +604,13 @@ public class ThreadTest extends junit.framework.TestCase {
         method = "getContextClassLoader",
         args = {}
     )
+    @KnownFailure("The context class loader is not inherited by a new thread."
+            + " On android the initial context class loader is alsways null.")
     public void test_getContextClassLoader() {
         // Test for method java.lang.ClassLoader
         // java.lang.Thread.getContextClassLoader()
         Thread t = new Thread();
+        assertNotNull(Thread.currentThread().getContextClassLoader());
         assertTrue("Incorrect class loader returned",
                 t.getContextClassLoader() == Thread.currentThread()
                         .getContextClassLoader());
@@ -1162,6 +1167,30 @@ public class ThreadTest extends junit.framework.TestCase {
         }
     }
     
+    private Thread launchFiveSecondDummyThread() {
+        Thread thread = new Thread() {
+            public void run() {
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    // Ignore
+                }
+            }
+        };
+        
+        thread.start();
+        
+        return thread;
+    }
+
+    private class ThreadSecurityManager extends SecurityManager {
+        public void checkPermission(Permission perm) {
+        }
+        
+        public void checkAccess(Thread t) {
+            throw new SecurityException();
+        }
+    };
     
     /**
      * @tests java.lang.Thread#resume()
@@ -1172,48 +1201,39 @@ public class ThreadTest extends junit.framework.TestCase {
         method = "resume",
         args = {}
     )
-    @AndroidOnly("Android throws UnsupportedOperationException for Thread.resume()")
+    @AndroidOnly("RI does implement this method, whereas Android does not")
     @SuppressWarnings("deprecation")
     public void test_resume() {
-        // Test for method void java.lang.Thread.resume()
-        int orgval;
-        ResSupThread t;
+        Thread thread = launchFiveSecondDummyThread(); 
+
         try {
-            t = new ResSupThread(Thread.currentThread());
-            synchronized (t) {
-                ct = new Thread(t, "Interrupt Test2");
-                ct.start();
-                t.wait();
-            }
-            try {
-                ct.resume();
-            } catch (UnsupportedOperationException e) {
-                // expected
-            }
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
-            fail("Unexpected interrupt occurred : " + e.getMessage());
+            // Ignore
         }
 
-        // Security checks are made even though resume() is not supported.
-        SecurityManager sm = new SecurityManager() {
-            public void checkPermission(Permission perm) {
-            }
-            
-            public void checkAccess(Thread t) {
-                throw new SecurityException();
-            }
-        };
-        st = new Thread();
+        // No-op in Android. Must neither have an effect nor throw an exception.
+        Thread.State state = thread.getState();
+        thread.resume();
+        assertEquals(state, thread.getState());
+
+        // Security checks are made even though method is not supported.
         SecurityManager oldSm = System.getSecurityManager();
-        System.setSecurityManager(sm);
+        System.setSecurityManager(new ThreadSecurityManager());
         try {
-            st.resume();
+            thread.resume();
             fail("Should throw SecurityException");
         } catch (SecurityException e) {
             // expected
         } finally {
             System.setSecurityManager(oldSm);
-        }        
+        }
+        
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            // Ignore
+        }
     }
 
     /**
@@ -1409,56 +1429,50 @@ public class ThreadTest extends junit.framework.TestCase {
         args = {long.class}
     )
     public void test_sleepJ() {
-        // Test for method void java.lang.Thread.sleep(long)
-
-        // TODO : Test needs enhancing.
-        long stime = 0, ftime = 0;
+        // Note: Not too much we can test here that can be reliably measured.
+        
+        // Check that basic behavior is about right (with some tolerance)
+        long stime = System.currentTimeMillis();
+        
         try {
-            stime = System.currentTimeMillis();
             Thread.sleep(1000);
-            ftime = System.currentTimeMillis();
         } catch (InterruptedException e) {
-            fail("Unexpected interrupt received");
+            fail("Unexpected InterruptedException was thrown");
         }
-        assertTrue("Failed to sleep long enough", (ftime - stime) >= 800);
-        
-        counter = 0;
-        st = new Thread() {
-           
-            public void run() {
-                while(true) {
-                    try {
-                        sleep(1000);
-                        counter++;
-                    } catch(InterruptedException e) {
-                        
-                    }
-                }
-            }
-        };
-       
-        st.start();
 
-        try {
-            Thread.sleep(5000);
-        } catch(InterruptedException e) {
-            fail("InterruptedException was thrown.");
-        }
-        assertEquals(4, counter);
+        long ftime = System.currentTimeMillis();
         
+        assertTrue("Failed to sleep long enough", (ftime - stime) >= 500);
+        assertTrue("Failed to wake up early enough", (ftime - stime) <= 1500);
+        
+        // Check that interrupt works
         st = new Thread() {
             public void run() {
                 try {
                     sleep(10000);
-                    fail("InterruptedException is thrown.");
                 } catch(InterruptedException ie) {
-                    //exception
+                    wasInterrupted = true;
                 }
             }
         };
 
         st.start();
+        
+        try {
+            Thread.sleep(5000);
+        } catch(InterruptedException e) {
+            fail("Unexpected InterruptedException was thrown");
+        }
+        
         st.interrupt();
+        
+        try {
+            Thread.sleep(5000);
+        } catch(InterruptedException e) {
+            fail("Unexpected InterruptedException was thrown");
+        }
+        
+        assertTrue(wasInterrupted);
     }
 
     /**
@@ -1471,57 +1485,50 @@ public class ThreadTest extends junit.framework.TestCase {
         args = {long.class, int.class}
     )
     public void test_sleepJI() {
-        // Test for method void java.lang.Thread.sleep(long, int)
-
-        // TODO : Test needs revisiting.
-        long stime = 0, ftime = 0;
+        // Note: Not too much we can test here that can be reliably measured.
+        
+        // Check that basic behavior is about right (with some tolerance)
+        long stime = System.currentTimeMillis();
+        
         try {
-            stime = System.currentTimeMillis();
-            Thread.sleep(1000, 999999);
-            ftime = System.currentTimeMillis();
+            Thread.sleep(1000, 99999);
         } catch (InterruptedException e) {
-            fail("Unexpected interrupt received");
+            fail("Unexpected InterruptedException was thrown");
         }
-        long result = ftime - stime;
-        assertTrue("Failed to sleep long enough: " + result, result >= 900
-                && result <= 1100);
-        
-        counter = 0;
-        st = new Thread() {
-           
-            public void run() {
-                while(true) {
-                    try {
-                        sleep(0, 999999);
-                        counter++;
-                    } catch(InterruptedException e) {
-                        
-                    }
-                }
-            }
-        };
-       
-        st.start();
 
-        try {
-            Thread.sleep(2, 999999);
-        } catch(InterruptedException e) {
-            fail("InterruptedException was thrown.");
-        }
-        assertEquals(2, counter);
+        long ftime = System.currentTimeMillis();
         
+        assertTrue("Failed to sleep long enough", (ftime - stime) >= 500);
+        assertTrue("Failed to wake up early enough", (ftime - stime) <= 1500);
+        
+        // Check that interrupt works
         st = new Thread() {
             public void run() {
                 try {
-                    sleep(10000, 999999);
-                    fail("InterruptedException is thrown.");
+                    sleep(10000, 99999);
                 } catch(InterruptedException ie) {
-                    //exception
+                    wasInterrupted = true;
                 }
             }
         };
+
         st.start();
+        
+        try {
+            Thread.sleep(5000, 99999);
+        } catch(InterruptedException e) {
+            fail("Unexpected InterruptedException was thrown");
+        }
+        
         st.interrupt();
+        
+        try {
+            Thread.sleep(5000);
+        } catch(InterruptedException e) {
+            fail("Unexpected InterruptedException was thrown");
+        }
+        
+        assertTrue(wasInterrupted);
     }
 
     /**
@@ -1569,136 +1576,99 @@ public class ThreadTest extends junit.framework.TestCase {
         method = "stop",
         args = {}
     )
-    @AndroidOnly("Android throws UnsupportedOperationException for Thread.stop()")
+    @AndroidOnly("RI does implement this method, whereas Android does not")
     @SuppressWarnings("deprecation")
     public void test_stop() {
-        // Test for method void java.lang.Thread.stop()
-        try {
-            Runnable r = new ResSupThread(null);
-            synchronized (r) {
-                st = new Thread(r, "Interupt Test5");
-                st.start();
-                r.wait();
-            }
+        Thread thread = launchFiveSecondDummyThread();
 
+        try {
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
-            fail("Unexpected interrupt received");
-        }
-        try {
-            st.stop();
-//            fail("Expected UnsupportedOperationException because" +
-//                    "Thread.stop is not supported.");
-        } catch (UnsupportedOperationException e) {
-            // expected
+            // Ignore
         }
 
-        // Security checks are made even though stop() is not supported.
-        SecurityManager sm = new SecurityManager() {
-            public void checkPermission(Permission perm) {
-                if(perm.getName().equals("stopThread")) {
-                    throw new SecurityException(); 
-                }
-            }
-        };
-        st = new Thread();
+        // No-op in Android. Must neither have an effect nor throw an exception.
+        Thread.State state = thread.getState();
+        thread.stop();
+        assertEquals(state, thread.getState());
+
+        // Security checks are made even though method is not supported.
         SecurityManager oldSm = System.getSecurityManager();
-        System.setSecurityManager(sm);
+        System.setSecurityManager(new ThreadSecurityManager());
         try {
-            st.stop();
+            thread.stop();
             fail("Should throw SecurityException");
         } catch (SecurityException e) {
             // expected
         } finally {
             System.setSecurityManager(oldSm);
-        } 
+        }
+        
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            // Ignore
+        }
     }
 
     /**
      * @tests java.lang.Thread#stop(java.lang.Throwable)
      */
     @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
+        level = TestLevel.COMPLETE,
         notes = "Verifies security.",
         method = "stop",
         args = {java.lang.Throwable.class}
     )
     @SuppressWarnings("deprecation")
     public void test_stopLjava_lang_Throwable_subtest0() {
-        // Security checks are made even though stop(Throwable) is not supported.
-        Thread t = new Thread("t");
-        class MySecurityManager extends SecurityManager {
-            @Override
-            public void checkAccess(Thread t) {
-               throw new SecurityException();
-            }
-            @Override
-            public void checkPermission(Permission permission) {
-
-                if(permission.getName().equals("stopThread")) {
-                    throw new SecurityException();
+        Thread thread = new Thread() {
+            public void run() {
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    // Ignore
                 }
             }
+        };
+        
+        thread.start();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            // Ignore
         }
-        MySecurityManager sm = new MySecurityManager();
+
+        // No-op in Android. Must neither have an effect nor throw an exception.
+        Thread.State state = thread.getState();
+        thread.stop(new Exception("Oops!"));
+        assertEquals(state, thread.getState());
+
+        // Security checks are made even though method is not supported.
+        SecurityManager sm = new SecurityManager() {
+            public void checkPermission(Permission perm) {
+            }
+            
+            public void checkAccess(Thread t) {
+                throw new SecurityException();
+            }
+        };
+
+        SecurityManager oldSm = System.getSecurityManager();
         System.setSecurityManager(sm);
         try {
-            try {
-                t.stop(new ThreadDeath());
-                fail("SecurityException was thrown.");
-            } catch (SecurityException e) {
-            }
-            t.start();
-            try {
-                t.join(1000);
-            } catch (InterruptedException e) {
-            }
-            try {
-                t.stop(new ThreadDeath());
-                fail("SecurityException was thrown.");
-            } catch (SecurityException e) {
-            }
-
+            thread.stop();
+            fail("Should throw SecurityException");
+        } catch (SecurityException e) {
+            // expected
         } finally {
-            System.setSecurityManager(null);
+            System.setSecurityManager(oldSm);
         }
-    }
-
-    /**
-     * @tests java.lang.Thread#stop(java.lang.Throwable)
-     */
-    @TestTargetNew(
-        level = TestLevel.PARTIAL_COMPLETE,
-        notes = "SecurityException is not verified.",
-        method = "stop",
-        args = {java.lang.Throwable.class}
-    )
-    @AndroidOnly("Android throws UnsupportedOperationException for Thread.stop(Thorwable)")     
-    @SuppressWarnings("deprecation")
-    public void test_stopLjava_lang_Throwable() {
-        // Test for method void java.lang.Thread.stop(java.lang.Throwable)
-        ResSupThread t = new ResSupThread(Thread.currentThread());
-        synchronized (t) {
-            st = new Thread(t, "StopThread");
-            st.setPriority(Thread.MAX_PRIORITY);
-            st.start();
-            try {
-                t.wait();
-            } catch (InterruptedException e) {
-            }
-        }
+        
         try {
-            st.stop(new BogusException("Bogus"));
-//            fail("Expected UnsupportedOperationException because" +
-//                    "Thread.stop is not supported.");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
-
-        try {
-            st.stop(null);
-            fail("Expected NullPointerException was not thrown");
-        } catch (NullPointerException e) {
-            // expected
+            thread.join();
+        } catch (InterruptedException e) {
+            // Ignore
         }
     }
 
@@ -1711,47 +1681,39 @@ public class ThreadTest extends junit.framework.TestCase {
         method = "suspend",
         args = {}
     )
-    @AndroidOnly("Android throws UnsupportedOperationException for Thread.suspend()")     
+    @AndroidOnly("RI does implement this method, whereas Android does not")
     @SuppressWarnings("deprecation")
     public void test_suspend() {
-        // Test for method void java.lang.Thread.suspend()
-        int orgval;
-        ResSupThread t = new ResSupThread(Thread.currentThread());
+        Thread thread = launchFiveSecondDummyThread();
+
         try {
-            synchronized (t) {
-                ct = new Thread(t, "Interupt Test6");
-                ct.start();
-                t.wait();
-            }
-            ct.suspend();
-//            fail("Expected UnsupportedOperationException because" +
-//                    "Thread.suspend is not supported.");
-        } catch (UnsupportedOperationException e) {
-            // expected
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
-            fail("Unexpected InterruptedException was thrown");
+            // Ignore
         }
 
-        // Security checks are made even though suspend() is not supported.
-        SecurityManager sm = new SecurityManager() {
-            public void checkPermission(Permission perm) {
-            }
-            
-            public void checkAccess(Thread t) {
-                throw new SecurityException();
-            }
-        };
-        st = new Thread();
+        // No-op in Android. Must neither have an effect nor throw an exception.
+        Thread.State state = thread.getState();
+        thread.suspend();
+        assertEquals(state, thread.getState());
+
+        // Security checks are made even though method is not supported.
         SecurityManager oldSm = System.getSecurityManager();
-        System.setSecurityManager(sm);
+        System.setSecurityManager(new ThreadSecurityManager());
         try {
-            st.suspend();
+            thread.suspend();
             fail("Should throw SecurityException");
         } catch (SecurityException e) {
             // expected
         } finally {
             System.setSecurityManager(oldSm);
-        }          
+        }
+        
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            // Ignore
+        }
     }
 
     /**
