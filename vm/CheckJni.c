@@ -213,7 +213,7 @@ static void checkThread(JNIEnv* env, int flags, const char* func)
     case kFlag_CritOkay:    // okay to call this method
         break;
     case kFlag_CritBad:     // not okay to call
-        if (threadEnv->critical) {
+        if (threadEnv != NULL && threadEnv->critical) {
             LOGW("JNI WARNING: threadid=%d using JNI after critical get\n",
                 threadEnv->envThreadId);
             printWarn = true;
