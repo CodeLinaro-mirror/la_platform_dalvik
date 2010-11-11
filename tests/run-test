@@ -170,7 +170,9 @@ test_dir=`pwd`
 td_info="${test_dir}/${info}"
 td_expected="${test_dir}/${expected}"
 
-tmp_dir="/tmp/test-$$"
+file_time=$(date +%Y%m%d-%H%M%S)
+# Making the file name include time stamp - this is to avoid getting errros durign the back to back runs
+tmp_dir="/tmp/test-$file_time"
 
 if [ '!' '(' -r "$td_info" -a -r "$td_expected" ')' ]; then
     echo "${test_dir}: missing files" 1>&2
