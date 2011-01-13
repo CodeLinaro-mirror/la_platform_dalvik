@@ -45,6 +45,9 @@ output="output.txt"
 build_output="build-output.txt"
 run_args="--quiet"
 
+runprog_84_class_init=$oldwd/"084-class-init"
+#runprog_84_class_init= This variable indicates the 084-class-init test directory where the output is sorted and compared with the expected output.
+
 dev_mode="no"
 update_mode="no"
 debug_mode="no"
@@ -219,6 +222,10 @@ else
     build_exit="$?"
     if [ "$build_exit" = '0' ]; then
         "./${run}" $run_args "$@" >"$output" 2>&1
+         if [ $test_dir = $runprog_84_class_init ]; then
+              sort $output > $output
+              sort $expected > $expected
+         fi
     else
         cp "$build_output" "$output"
         echo "build exit status: $build_exit" >>"$output"
