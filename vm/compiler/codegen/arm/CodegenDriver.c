@@ -1256,7 +1256,7 @@ static void genInterpSingleStep(CompilationUnit *cUnit, MIR *mir)
 }
 
 #if defined(WITH_DEADLOCK_PREDICTION) || defined(WITH_MONITOR_TRACKING) || \
-    defined(_ARMV5TE) || defined(_ARMV5TE_VFP)
+    defined(_ARMV5TE) || defined(_ARMV5TE_VFP) || defined(_ARMV6K_VFP)
 /*
  * To prevent a thread in a monitor wait from blocking the Jit from
  * resetting the code cache, heavyweight monitor lock will not
