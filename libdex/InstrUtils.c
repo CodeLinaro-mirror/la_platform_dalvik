@@ -1192,6 +1192,21 @@ void dexDecodeInstruction(const InstructionFormat* fmts, const u2* insns,
             pDec->vB = FETCH(1);
             regList = FETCH(2);
 
+#ifdef INLINE_ARG5
+            if( pDec->vA == 5 ){
+                pDec->arg[4] = INST_A(inst);
+                for (i = 0; i < 4; i++) {
+                    pDec->arg[i] = regList & 0x0f;
+                    regList >>= 4;
+                }
+            }
+            else {
+                for (i = 0; i < (int) pDec->vA; i++) {
+                    pDec->arg[i] = regList & 0x0f;
+                    regList >>= 4;
+                }
+            }
+#else
             if (pDec->vA > 4) {
                 LOGW("Invalid arg count in 3inline (%d)\n", pDec->vA);
                 goto bail;
@@ -1200,6 +1215,7 @@ void dexDecodeInstruction(const InstructionFormat* fmts, const u2* insns,
                 pDec->arg[i] = regList & 0x0f;
                 regList >>= 4;
             }
+#endif
             /* copy arg[0] to vC; we don't have vD/vE/vF, so ignore those */
             if (pDec->vA > 0)
                 pDec->vC = pDec->arg[0];

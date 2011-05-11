@@ -141,6 +141,8 @@ public class Main {
         String lc = "abcdefg";
         String uc = "ABCDEFG";
         Object blah = new Object();
+        String ssub = "0123";
+        String esub = "6789";
 
         for (int i = 0; i < 100; i++) {
             String y = lc.toUpperCase();
@@ -153,6 +155,11 @@ public class Main {
         Assert.assertTrue(test.equals(test));
         Assert.assertTrue(test.equals(test1));
         Assert.assertFalse(test.equals(test2));
+
+        Assert.assertTrue(test.startsWith(ssub));
+        Assert.assertTrue(test.endsWith(esub));
+        Assert.assertFalse(test.endsWith(ssub));
+        Assert.assertFalse(test.startsWith(esub));
 
         Assert.assertEquals(test.compareTo(test1), 0);
         Assert.assertTrue(test1.compareTo(test2) > 0);

@@ -28,6 +28,10 @@ void dvmInlineNativeShutdown(void);
  */
 typedef bool (*InlineOp4Func)(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     JValue* pResult);
+#ifdef INLINE_ARG5
+typedef bool (*InlineOp5Func)(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, u4 arg4);
+#endif
 
 /*
  * Table of inline operations.
@@ -72,6 +76,9 @@ typedef enum NativeInlineOps {
     INLINE_DOUBLE_TO_LONG_BITS = 19,
     INLINE_DOUBLE_TO_RAW_LONG_BITS = 20,
     INLINE_LONG_BITS_TO_DOUBLE = 21,
+#ifdef INLINE_ARG5
+    INLINE_STRING_REGION_MATCHES = 22,
+#endif
 } NativeInlineOps;
 
 /*
@@ -101,6 +108,24 @@ INLINE bool dvmPerformInlineOp4Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
 {
     return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
 }
+#ifdef INLINE_ARG5
+/*
+ * Perform the operation specified by "opIndex".
+ *
+ * We want the arguments to appear in the first 4 registers so they can
+ * be passed straight through to the handler function.  Ideally on ARM
+ * they'll go into r0-r3 and stay there.
+ *
+ * Returns "true" if everything went normally, "false" if an exception
+ * was thrown.
+ */
+INLINE bool dvmPerformInlineOp5Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4)
+{
+    return ((InlineOp5Func)(*gDvmInlineOpsTable[opIndex].func))(arg0, arg1, arg2, arg3, pResult, arg4);
+}
+
+#endif
 
 /*
  * Like the "std" version, but will emit profiling info.
@@ -108,4 +133,11 @@ INLINE bool dvmPerformInlineOp4Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
 bool dvmPerformInlineOp4Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     JValue* pResult, int opIndex);
 
+#ifdef INLINE_ARG5
+/*
+ * Like the "std" version, but will emit profiling info.
+ */
+bool dvmPerformInlineOp5Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4);
+#endif
 #endif /*_DALVIK_INLINENATIVE*/

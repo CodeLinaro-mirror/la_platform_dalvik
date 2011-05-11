@@ -32,6 +32,10 @@
  * way classes load changes, e.g. field ordering or vtable layout.  Changing
  * this guarantees that the optimized form of the DEX file is regenerated.
  */
-#define DALVIK_VM_BUILD         23
+
+/*
+ * CAF: changing build number from 23 to 24 for inlining regionMatches.
+ */
+#define DALVIK_VM_BUILD         24
 
 #endif /*_DALVIK_VERSION*/
