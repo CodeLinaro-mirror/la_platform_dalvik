@@ -855,3 +855,67 @@ bool dvmPerformInlineOp4Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
 skip_prof:
     return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
 }
+#ifdef INLINE_ARG5
+
+bool dvmPerformInlineOp5Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4)
+{
+    Thread* self = dvmThreadSelf();
+    bool result;
+
+    assert(opIndex >= 0 && opIndex < NELEM(gDvmInlineOpsTable));
+
+    /*
+     * Populate the methods table on first use.  It's possible the class
+     * hasn't been resolved yet, so we need to do the full "calling the
+     * method for the first time" routine.  (It's probably okay to skip
+     * the access checks.)
+     *
+     * Currently assuming that we're only inlining stuff loaded by the
+     * bootstrap class loader.  This is a safe assumption for many reasons.
+     */
+    Method* method = gDvm.inlinedMethods[opIndex];
+    if (method == NULL) {
+        ClassObject* clazz;
+
+        clazz = dvmFindClassNoInit(
+                gDvmInlineOpsTable[opIndex].classDescriptor, NULL);
+        if (clazz == NULL) {
+            LOGW("Warning: can't find class '%s'\n", clazz->descriptor);
+            goto skip_prof;
+        }
+        method = dvmFindDirectMethodByDescriptor(clazz,
+                    gDvmInlineOpsTable[opIndex].methodName,
+                    gDvmInlineOpsTable[opIndex].methodSignature);
+        if (method == NULL)
+            method = dvmFindVirtualMethodByDescriptor(clazz,
+                        gDvmInlineOpsTable[opIndex].methodName,
+                        gDvmInlineOpsTable[opIndex].methodSignature);
+        if (method == NULL) {
+            LOGW("Warning: can't find method %s.%s %s\n",
+                clazz->descriptor,
+                gDvmInlineOpsTable[opIndex].methodName,
+                gDvmInlineOpsTable[opIndex].methodSignature);
+            goto skip_prof;
+        }
+
+        gDvm.inlinedMethods[opIndex] = method;
+        IF_LOGV() {
+            char* desc = dexProtoCopyMethodDescriptor(&method->prototype);
+            LOGV("Registered for profile: %s.%s %s\n",
+                method->clazz->descriptor, method->name, desc);
+            free(desc);
+        }
+    }
+
+    TRACE_METHOD_ENTER(self, method);
+    result = ((InlineOp5Func)(*gDvmInlineOpsTable[opIndex].func))(arg0, arg1, arg2, arg3,
+            pResult, arg4);
+
+    TRACE_METHOD_EXIT(self, method);
+    return result;
+
+skip_prof:
+    return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
+}
+#endif
