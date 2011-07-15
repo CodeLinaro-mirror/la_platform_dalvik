@@ -14,15 +14,6 @@
 
 LOCAL_PATH:= $(call my-dir)
 
-ifeq ($(ARCH_ARM_HAVE_ARMV7A),true)
-    target_inline_arg5_flag := -DINLINE_ARG5
-    host_inline_arg5_flag := -DINLINE_ARG5
-else
-    target_inline_arg5_flag :=
-    host_inline_arg5_flag :=
-endif
-
-
 dex_src_files := \
 	CmdUtils.c \
 	DexCatch.c \
@@ -59,7 +50,6 @@ LOCAL_SRC_FILES := $(dex_src_files)
 LOCAL_C_INCLUDES += $(dex_include_files)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libdex
-LOCAL_CFLAGS += $(target_inline_arg5_flag)
 include $(BUILD_STATIC_LIBRARY)
 
 endif # !SDK_ONLY
@@ -75,5 +65,4 @@ LOCAL_SRC_FILES := $(dex_src_files)
 LOCAL_C_INCLUDES += $(dex_include_files)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libdex
-LOCAL_CFLAGS += $(host_inline_arg5_flag)
 include $(BUILD_HOST_STATIC_LIBRARY)
