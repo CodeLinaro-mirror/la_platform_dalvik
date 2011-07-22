@@ -792,6 +792,24 @@ int dvmGetInlineOpsTableLength(void)
 }
 
 /*
+ * Inline ops extension.
+ */
+__attribute__((weak)) InlineOperation* dvmGetInlineOpsTableEx(int *length)
+{
+    if (length)
+        *length = 0;
+    return NULL;
+}
+__attribute__((weak)) InlineOp4Func dvmInlineOpsExFunc(int opcode)
+{
+    return NULL;
+}
+__attribute__((weak)) int dvmInlineOpsExVerify(int opcode)
+{
+    return 0;
+}
+
+/*
  * Make an inline call for the "debug" interpreter, used when the debugger
  * or profiler is active.
  */
@@ -800,6 +818,9 @@ bool dvmPerformInlineOp4Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
 {
     Thread* self = dvmThreadSelf();
     bool result;
+
+    if (opIndex >= INLINE_EX_START)
+        return (*dvmInlineOpsExFunc(opIndex))(arg0, arg1, arg2, arg3, pResult);
 
     assert(opIndex >= 0 && opIndex < NELEM(gDvmInlineOpsTable));
 
@@ -855,13 +876,16 @@ bool dvmPerformInlineOp4Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
 skip_prof:
     return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
 }
-#ifdef INLINE_ARG5
 
+#ifdef INLINE_ARG5
 bool dvmPerformInlineOp5Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     JValue* pResult, int opIndex, u4 arg4)
 {
     Thread* self = dvmThreadSelf();
     bool result;
+
+    if (opIndex >= INLINE_EX_START)
+        return ((InlineOp5Func)(*dvmInlineOpsExFunc(opIndex)))(arg0, arg1, arg2, arg3, pResult, arg4);
 
     assert(opIndex >= 0 && opIndex < NELEM(gDvmInlineOpsTable));
 
@@ -916,6 +940,6 @@ bool dvmPerformInlineOp5Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     return result;
 
 skip_prof:
-    return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
+    return ((InlineOp5Func)(*gDvmInlineOpsTable[opIndex].func))(arg0, arg1, arg2, arg3, pResult, arg4);
 }
 #endif

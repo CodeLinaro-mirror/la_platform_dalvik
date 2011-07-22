@@ -23,7 +23,7 @@
 /*
  * Prep data structures.
  */
-InlineSub* dvmCreateInlineSubsTable(void);
+InlineSub* dvmCreateInlineSubsTable(int extended);
 void dvmFreeInlineSubsTable(InlineSub* inlineSubs);
 
 /*
