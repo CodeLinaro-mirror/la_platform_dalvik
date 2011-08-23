@@ -54,14 +54,24 @@ static bool rewriteExecuteInlineRange(Method* method, u2* insns,
  * TODO: this is currently just a linear array.  We will want to put this
  * into a hash table as the list size increases.
  */
-InlineSub* dvmCreateInlineSubsTable(void)
+InlineSub* dvmCreateInlineSubsTable(int extended)
 {
-    const InlineOperation* ops = dvmGetInlineOpsTable();
-    const int count = dvmGetInlineOpsTableLength();
+    const InlineOperation* ops = NULL;
+    int count;
     InlineSub* table;
     Method* method;
     ClassObject* clazz;
-    int i, tableIndex;
+    int i, tableIndex, tblOff = 0;
+
+    if (!extended) {
+        ops = dvmGetInlineOpsTable();
+        count = dvmGetInlineOpsTableLength();
+    } else {
+        ops = dvmGetInlineOpsTableEx(&count);
+        tblOff = INLINE_EX_START;
+        if (!ops)
+            return NULL;
+    }
 
     /*
      * Allocate for optimism: one slot per entry, plus an end-of-list marker.
@@ -106,7 +116,7 @@ InlineSub* dvmCreateInlineSubsTable(void)
                 }
 
                 table[tableIndex].method = method;
-                table[tableIndex].inlineIdx = i;
+                table[tableIndex].inlineIdx = i + tblOff;
                 tableIndex++;
 
                 LOGV("DexOpt: will inline %d: %s.%s %s\n", i,
@@ -1027,6 +1037,7 @@ static bool rewriteExecuteInline(Method* method, u2* insns,
     ClassObject* clazz = method->clazz;
     Method* calledMethod;
     u2 methodIdx = insns[1];
+    int inInlineSubsEx = 0;
 
     //return false;
 
@@ -1036,6 +1047,7 @@ static bool rewriteExecuteInline(Method* method, u2* insns,
         return false;
     }
 
+process:
     while (inlineSubs->method != NULL) {
         /*
         if (extra) {
@@ -1063,6 +1075,12 @@ static bool rewriteExecuteInline(Method* method, u2* insns,
         inlineSubs++;
     }
 
+    if (!inInlineSubsEx && gDvm.inlineSubsEx) {
+        inInlineSubsEx = 1;
+        inlineSubs = gDvm.inlineSubsEx;
+        goto process;
+    }
+
     return false;
 }
 
@@ -1079,6 +1097,7 @@ static bool rewriteExecuteInlineRange(Method* method, u2* insns,
     ClassObject* clazz = method->clazz;
     Method* calledMethod;
     u2 methodIdx = insns[1];
+    int inInlineSubsEx = 0;
 
     calledMethod = dvmOptResolveMethod(clazz, methodIdx, methodType, NULL);
     if (calledMethod == NULL) {
@@ -1086,6 +1105,7 @@ static bool rewriteExecuteInlineRange(Method* method, u2* insns,
         return false;
     }
 
+process:
     while (inlineSubs->method != NULL) {
         if (inlineSubs->method == calledMethod) {
             assert((insns[0] & 0xff) == OP_INVOKE_DIRECT_RANGE ||
@@ -1104,5 +1124,10 @@ static bool rewriteExecuteInlineRange(Method* method, u2* insns,
         inlineSubs++;
     }
 
+    if (!inInlineSubsEx && gDvm.inlineSubsEx) {
+        inInlineSubsEx = 1;
+        inlineSubs = gDvm.inlineSubsEx;
+        goto process;
+    }
     return false;
 }

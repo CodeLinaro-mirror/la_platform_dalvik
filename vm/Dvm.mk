@@ -285,6 +285,10 @@ ifeq ($(dvm_arch),arm)
 		compiler/codegen/arm/GlobalOptimizations.c \
 		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
   endif
+
+  ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+    LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
+  endif
 endif
 
 ifeq ($(dvm_arch),x86)
