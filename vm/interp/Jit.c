@@ -1151,6 +1151,8 @@ bool dvmJitCheckTraceRequest(Thread* self, InterpState* interpState)
                 LOGD("JIT: JitTable full, disabling profiling");
                 dvmJitStopTranslationRequests();
             } else if (slot->u.info.traceConstruction) {
+                interpState->jitState = kJitDone;
+#if ANDROID_SMP == 0
                 /*
                  * Trace request already in progress, but most likely it
                  * aborted without cleaning up.  Assume the worst and
@@ -1161,8 +1163,8 @@ bool dvmJitCheckTraceRequest(Thread* self, InterpState* interpState)
                  * template instead of the real translation during this
                  * window.  Performance, but not correctness, issue.
                  */
-                interpState->jitState = kJitDone;
                 resetTracehead(interpState, slot);
+#endif
             } else if (slot->codeAddress) {
                  /* Nothing to do here - just return */
                 interpState->jitState = kJitDone;
