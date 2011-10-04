@@ -3427,11 +3427,11 @@ static bool handleExecuteInline(CompilationUnit *cUnit, MIR *mir)
                 case INLINE_MATH_SIN:
                 case INLINE_FLOAT_TO_INT_BITS:
                 case INLINE_DOUBLE_TO_LONG_BITS:
-#ifdef INLINE_ARG5
-                case INLINE_STRING_REGION_MATCHES:
-#endif
                     break;   /* Handle with C routine */
                 default:
+                    if (dvmInlineOpsExVerify(operation)) {
+                        break;
+                    }
                     dvmCompilerAbort(cUnit);
             }
             dvmCompilerFlushAllRegs(cUnit);   /* Everything to home location */
@@ -3445,7 +3445,11 @@ static bool handleExecuteInline(CompilationUnit *cUnit, MIR *mir)
             }
 #endif
             opImm(cUnit, kOpPush, (1<<r4PC) | (1<<r7));
-            LOAD_FUNC_ADDR(cUnit, r4PC, (int)inLineTable[operation].func);
+            if (operation < INLINE_EX_START) {
+                LOAD_FUNC_ADDR(cUnit, r4PC, (int)inLineTable[operation].func);
+            } else {
+                LOAD_FUNC_ADDR(cUnit, r4PC, (int)dvmInlineOpsExFunc(operation));
+            }
             genExportPC(cUnit, mir);
 #ifdef INLINE_ARG5
             if( dInsn->vA == 5 ){

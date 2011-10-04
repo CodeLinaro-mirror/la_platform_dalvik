@@ -885,9 +885,10 @@ static void verifyAndOptimizeClasses(DexFile* pDexFile, bool doVerify,
      * only going to call here once.
      */
     if (doOpt) {
-        gDvm.inlineSubs = dvmCreateInlineSubsTable();
+        gDvm.inlineSubs = dvmCreateInlineSubsTable(0);
         if (gDvm.inlineSubs == NULL)
             return;
+        gDvm.inlineSubsEx = dvmCreateInlineSubsTable(1);
     }
 
     for (idx = 0; idx < count; idx++) {
@@ -913,6 +914,10 @@ static void verifyAndOptimizeClasses(DexFile* pDexFile, bool doVerify,
     if (gDvm.inlineSubs != NULL) {
         dvmFreeInlineSubsTable(gDvm.inlineSubs);
         gDvm.inlineSubs = NULL;
+    }
+    if (gDvm.inlineSubsEx != NULL) {
+        dvmFreeInlineSubsTable(gDvm.inlineSubsEx);
+        gDvm.inlineSubsEx = NULL;
     }
 }
 
