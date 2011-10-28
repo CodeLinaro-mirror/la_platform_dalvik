@@ -35,6 +35,11 @@ typedef enum optControlVector {
 struct CompilationUnit;
 struct LIR;
 
+void dvmCompilerApplyPostLocalOptimization(struct CompilationUnit *cUnit,
+                                           struct LIR *head,
+                                           struct LIR *tail,
+                                           int dalvik_block_count);
+
 void dvmCompilerApplyLocalOptimizations(struct CompilationUnit *cUnit,
                                         struct LIR *head,
                                         struct LIR *tail);

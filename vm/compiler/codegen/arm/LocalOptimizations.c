@@ -499,6 +499,14 @@ static void applyLoadHoisting(CompilationUnit *cUnit,
     }
 }
 
+__attribute__((weak)) void dvmCompilerApplyPostLocalOptimization(CompilationUnit *cUnit,
+                                                                 LIR *headLIR,
+                                                                 LIR *tailLIR,
+                                                                 int dalvik_block_count)
+{
+    ;
+}
+
 void dvmCompilerApplyLocalOptimizations(CompilationUnit *cUnit, LIR *headLIR,
                                         LIR *tailLIR)
 {

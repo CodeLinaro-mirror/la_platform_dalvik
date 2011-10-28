@@ -3956,6 +3956,8 @@ void dvmCompilerMIR2LIR(CompilationUnit *cUnit)
         dvmCompilerNew(sizeof(ArmLIR) * cUnit->numBlocks, true);
     GrowableList chainingListByType[kChainingCellGap];
     int i;
+    ArmLIR *absolute_headLIR = NULL;
+    int dalvik_block_count = 0;
 
     /*
      * Initialize various types chaining lists.
@@ -4032,6 +4034,7 @@ void dvmCompilerMIR2LIR(CompilationUnit *cUnit)
             goto gen_fallthrough;
         } else if (blockList[i]->blockType == kDalvikByteCode) {
             labelList[i].opCode = kArmPseudoNormalBlockLabel;
+            dalvik_block_count++;
             /* Reset the register state */
             dvmCompilerResetRegPool(cUnit);
             dvmCompilerClobberAllRegs(cUnit);
@@ -4275,6 +4278,12 @@ void dvmCompilerMIR2LIR(CompilationUnit *cUnit)
              */
             dvmCompilerApplyLocalOptimizations(cUnit, (LIR *) headLIR,
                                                cUnit->lastLIRInsn);
+            if (!absolute_headLIR) {
+                absolute_headLIR = headLIR;
+            } else {
+                dvmCompilerApplyPostLocalOptimization(cUnit, (LIR*) absolute_headLIR,
+                                                      cUnit->lastLIRInsn, dalvik_block_count);
+            }
         }
 
 gen_fallthrough:
