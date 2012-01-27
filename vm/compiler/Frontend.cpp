@@ -1356,7 +1356,8 @@ bool dvmCompileMethod(const Method *method, JitTranslationInfo *info)
 /*
  * Utility funtion to check the DEX opcode for correctness
  */
-__attribute__((weak)) bool dvmVerifyDex(BasicBlock *curBlock, const u2* codePtr, MIR *insn)
+__attribute__((weak)) bool dvmVerifyDex(CompilationUnit *cUnit, BasicBlock *curBlock,
+                                        const u2* codePtr, MIR *insn)
 {
     bool result = false;
     if (insn) {
@@ -1405,7 +1406,7 @@ static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
         if (width == 0)
             break;
 
-        dvmVerifyDex(curBlock, codePtr + width, insn);
+        dvmVerifyDex(cUnit, curBlock, codePtr + width, insn);
         dvmCompilerAppendMIR(curBlock, insn);
 
         codePtr += width;
@@ -1795,7 +1796,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
         assert(width);
         insn->width = width;
 
-        dvmVerifyDex(curBB, codePtr + width, insn);
+        dvmVerifyDex(&cUnit, curBB, codePtr + width, insn);
         traceSize += width;
         dvmCompilerAppendMIR(curBB, insn);
         cUnit.numInsts++;
