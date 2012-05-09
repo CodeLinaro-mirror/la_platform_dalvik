@@ -339,6 +339,15 @@ static void updateRangeCheckInfo(CompilationUnit *cUnit, int arrayReg,
     }
 }
 
+__attribute__((weak)) void dvmCompilerDumpMIRInCodeMotion(CompilationUnit *cUnit, MIR *mir)
+{
+    if(cUnit->printMe){
+        DecodedInstruction *decInsn = &(mir->dalvikInsn);
+        char *decodedString = dvmCompilerGetDalvikDisassembly(decInsn, NULL);
+        LOGD("%#06x %s", decInsn->opcode, decodedString);
+    }
+}
+
 /* Returns true if the loop body cannot throw any exceptions */
 static bool doLoopBodyCodeMotion(CompilationUnit *cUnit)
 {
@@ -420,6 +429,7 @@ static bool doLoopBodyCodeMotion(CompilationUnit *cUnit)
                 updateRangeCheckInfo(cUnit, mir->ssaRep->uses[refIdx],
                                      mir->ssaRep->uses[useIdx]);
             }
+            dvmCompilerDumpMIRInCodeMotion(cUnit, mir);
         }
     }
 
@@ -667,6 +677,62 @@ bool dvmCompilerFilterLoopBlocks(CompilationUnit *cUnit)
     return true;
 }
 
+__attribute__((weak)) void dvmCompilerDumpIVList(CompilationUnit *cUnit)
+{
+    unsigned int i;
+    GrowableList *ivList = cUnit->loopAnalysis->ivList;
+
+    if(cUnit->printMe){
+        for (i = 0; i < ivList->numUsed; i++) {
+            InductionVariableInfo *ivInfo =
+                (InductionVariableInfo *) ivList->elemList[i];
+            int iv = dvmConvertSSARegToDalvik(cUnit, ivInfo->ssaReg);
+            /* Basic IV */
+            if (ivInfo->ssaReg == ivInfo->basicSSAReg) {
+                LOGD("BIV %d: s%d(v%d_%d) + %d", i,
+                    ivInfo->ssaReg,
+                    DECODE_REG(iv), DECODE_SUB(iv),
+                    ivInfo->inc);
+            /* Dependent IV */
+            } else {
+                int biv = dvmConvertSSARegToDalvik(cUnit, ivInfo->basicSSAReg);
+
+                LOGD("DIV %d: s%d(v%d_%d) = %d * s%d(v%d_%d) + %d", i,
+                    ivInfo->ssaReg,
+                    DECODE_REG(iv), DECODE_SUB(iv),
+                    ivInfo->m,
+                    ivInfo->basicSSAReg,
+                    DECODE_REG(biv), DECODE_SUB(biv),
+                    ivInfo->c);
+            }
+        }
+    }
+}
+
+__attribute__((weak)) void dvmCompilerDumpHoistedChecks(CompilationUnit *cUnit)
+{
+    LoopAnalysis *loopAnalysis = cUnit->loopAnalysis;
+    unsigned int i;
+    if(cUnit->printMe){
+        for (i = 0; i < loopAnalysis->arrayAccessInfo->numUsed; i++) {
+            ArrayAccessInfo *arrayAccessInfo =
+                GET_ELEM_N(loopAnalysis->arrayAccessInfo,
+                           ArrayAccessInfo*, i);
+            int arrayReg = DECODE_REG(
+                dvmConvertSSARegToDalvik(cUnit, arrayAccessInfo->arrayReg));
+            int idxReg = DECODE_REG(
+                dvmConvertSSARegToDalvik(cUnit, arrayAccessInfo->ivReg));
+            LOGD("Array access %d", i);
+            LOGD("  arrayReg %d", arrayReg);
+            LOGD("  idxReg %d", idxReg);
+            LOGD("  endReg %d", loopAnalysis->endConditionReg);
+            LOGD("  maxC %d", arrayAccessInfo->maxC);
+            LOGD("  minC %d", arrayAccessInfo->minC);
+            LOGD("  opcode %d", loopAnalysis->loopBranchOpcode);
+        }
+    }
+}
+
 /*
  * Main entry point to do loop optimization.
  * Return false if sanity checks for loop formation/optimization failed.
@@ -678,7 +744,7 @@ bool dvmCompilerLoopOpt(CompilationUnit *cUnit)
     cUnit->loopAnalysis = loopAnalysis;
 
     /* Constant propagation */
-    cUnit->isConstantV = dvmAllocBitVector(cUnit->numSSARegs, false);
+    cUnit->isConstantV = dvmCompilerAllocBitVector(cUnit->numSSARegs, false);
     cUnit->constantValues =
         (int *)dvmCompilerNew(sizeof(int) * cUnit->numSSARegs,
                               true);
@@ -692,12 +758,14 @@ bool dvmCompilerLoopOpt(CompilationUnit *cUnit)
     loopAnalysis->ivList =
         (GrowableList *)dvmCompilerNew(sizeof(GrowableList), true);
     dvmInitGrowableList(loopAnalysis->ivList, 4);
-    loopAnalysis->isIndVarV = dvmAllocBitVector(cUnit->numSSARegs, false);
+    loopAnalysis->isIndVarV = dvmCompilerAllocBitVector(cUnit->numSSARegs, false);
     dvmCompilerDataFlowAnalysisDispatcher(cUnit,
                                           dvmCompilerFindInductionVariables,
                                           kAllNodes,
                                           false /* isIterative */);
     DEBUG_LOOP(dumpIVList(cUnit);)
+
+    dvmCompilerDumpIVList(cUnit);
 
     /* Only optimize array accesses for simple counted loop for now */
     if (!isSimpleCountedLoop(cUnit))
@@ -714,6 +782,7 @@ bool dvmCompilerLoopOpt(CompilationUnit *cUnit)
      * header.
      */
     genHoistedChecks(cUnit);
+    dvmCompilerDumpHoistedChecks(cUnit);
     return true;
 }
 

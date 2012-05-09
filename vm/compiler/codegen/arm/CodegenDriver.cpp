@@ -4046,6 +4046,13 @@ static const char *extendedMIROpNames[kMirOpLast - kMirOpFirst] = {
     "kMirOpCheckInlinePrediction",
 };
 
+
+__attribute__((weak)) bool genHoistedChecksForCountUpLoopThumb(CompilationUnit *cUnit,
+                                                                MIR *mir)
+{
+    return false;
+}
+
 /*
  * vA = arrayReg;
  * vB = idxReg;
@@ -4056,6 +4063,8 @@ static const char *extendedMIROpNames[kMirOpLast - kMirOpFirst] = {
  */
 static void genHoistedChecksForCountUpLoop(CompilationUnit *cUnit, MIR *mir)
 {
+    if(genHoistedChecksForCountUpLoopThumb(cUnit, mir))
+        return;
     /*
      * NOTE: these synthesized blocks don't have ssa names assigned
      * for Dalvik registers.  However, because they dominate the following
@@ -4072,9 +4081,11 @@ static void genHoistedChecksForCountUpLoop(CompilationUnit *cUnit, MIR *mir)
     /* regArray <- arrayRef */
     rlArray = loadValue(cUnit, rlArray, kCoreReg);
     rlIdxEnd = loadValue(cUnit, rlIdxEnd, kCoreReg);
-    genRegImmCheck(cUnit, kArmCondEq, rlArray.lowReg, 0, 0,
-                   (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
-
+    if (!dvmIsBitSet(cUnit->regPool->nullCheckedRegs, mir->dalvikInsn.vA)){
+        dvmSetBit(cUnit->regPool->nullCheckedRegs, mir->dalvikInsn.vA);
+        genRegImmCheck(cUnit, kArmCondEq, rlArray.lowReg, 0, 0,
+                       (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
+    }
     /* regLength <- len(arrayRef) */
     regLength = dvmCompilerAllocTemp(cUnit);
     loadWordDisp(cUnit, rlArray.lowReg, lenOffset, regLength);
@@ -4099,6 +4110,11 @@ static void genHoistedChecksForCountUpLoop(CompilationUnit *cUnit, MIR *mir)
                    (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
 }
 
+__attribute__((weak)) bool genHoistedChecksForCountDownLoopThumb(CompilationUnit *cUnit,
+                                                                MIR *mir)
+{
+    return false;
+}
 /*
  * vA = arrayReg;
  * vB = idxReg;
@@ -4109,6 +4125,9 @@ static void genHoistedChecksForCountUpLoop(CompilationUnit *cUnit, MIR *mir)
  */
 static void genHoistedChecksForCountDownLoop(CompilationUnit *cUnit, MIR *mir)
 {
+    if(genHoistedChecksForCountDownLoopThumb(cUnit, mir))
+        return;
+
     DecodedInstruction *dInsn = &mir->dalvikInsn;
     const int lenOffset = OFFSETOF_MEMBER(ArrayObject, length);
     const int regLength = dvmCompilerAllocTemp(cUnit);
@@ -4119,8 +4138,11 @@ static void genHoistedChecksForCountDownLoop(CompilationUnit *cUnit, MIR *mir)
     /* regArray <- arrayRef */
     rlArray = loadValue(cUnit, rlArray, kCoreReg);
     rlIdxInit = loadValue(cUnit, rlIdxInit, kCoreReg);
-    genRegImmCheck(cUnit, kArmCondEq, rlArray.lowReg, 0, 0,
-                   (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
+    if (!dvmIsBitSet(cUnit->regPool->nullCheckedRegs, mir->dalvikInsn.vA)){
+        dvmSetBit(cUnit->regPool->nullCheckedRegs, mir->dalvikInsn.vA);
+        genRegImmCheck(cUnit, kArmCondEq, rlArray.lowReg, 0, 0,
+                       (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
+    }
 
     /* regLength <- len(arrayRef) */
     loadWordDisp(cUnit, rlArray.lowReg, lenOffset, regLength);
@@ -4137,12 +4159,20 @@ static void genHoistedChecksForCountDownLoop(CompilationUnit *cUnit, MIR *mir)
                    (ArmLIR *) cUnit->loopAnalysis->branchToPCR);
 }
 
+__attribute__((weak)) bool genHoistedLowerBoundCheckThumb(CompilationUnit *cUnit,
+                                                                MIR *mir)
+{
+    return false;
+}
 /*
  * vA = idxReg;
  * vB = minC;
  */
 static void genHoistedLowerBoundCheck(CompilationUnit *cUnit, MIR *mir)
 {
+    if(genHoistedLowerBoundCheckThumb(cUnit, mir))
+        return;
+
     DecodedInstruction *dInsn = &mir->dalvikInsn;
     const int minC = dInsn->vB;
     RegLocation rlIdx = cUnit->regLocation[mir->dalvikInsn.vA];
@@ -5026,5 +5056,6 @@ LocalOptsFuncMap localOptsFunMap = {
     genIT,
     genBarrier,
     modifiedImmediate,
+    genRegImmCheck,
 };
 
