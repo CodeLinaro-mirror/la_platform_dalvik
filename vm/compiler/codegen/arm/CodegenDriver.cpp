@@ -3709,6 +3709,12 @@ static bool genInlinedLongDoubleConversion(CompilationUnit *cUnit, MIR *mir)
     return false;
 }
 
+__attribute__((weak)) int getInlineTableFunc(int operation)
+{
+    const InlineOperation* inLineTable = dvmGetInlineOpsTable();
+    return ((int)inLineTable[operation].func);
+}
+
 /*
  * JITs a call to a C function.
  * TODO: use this for faster native method invocation for simple native
@@ -3719,13 +3725,7 @@ static bool handleExecuteInlineC(CompilationUnit *cUnit, MIR *mir)
     DecodedInstruction *dInsn = &mir->dalvikInsn;
     int operation = dInsn->vB;
     unsigned int i;
-    const InlineOperation* inLineTable = dvmGetInlineOpsTable();
-    uintptr_t fn = 0;
-    if (operation < INLINE_EX_START) {
-        fn = (int) inLineTable[operation].func;
-    } else {
-        fn = (int)dvmInlineOpsExFunc(operation);
-    }
+    uintptr_t fn = getInlineTableFunc(operation);
     if (fn == 0) {
         dvmCompilerAbort(cUnit);
     }
@@ -3774,8 +3774,10 @@ static bool handleExecuteInlineC(CompilationUnit *cUnit, MIR *mir)
 #endif
     opReg(cUnit, kOpBlx, r4PC);
 #ifdef INLINE_ARG_EXPANDED
-    if( dInsn->vA > 5 ){
+    if( dInsn->vA == 7 ){
         opRegImm(cUnit, kOpAdd, r13sp, 16);
+    } else if( dInsn->vA == 6 ){
+        opRegImm(cUnit, kOpAdd, r13sp, 12);
     } else {
         opRegImm(cUnit, kOpAdd, r13sp, 8);
     }
@@ -3848,9 +3850,8 @@ static bool handleExecuteInline(CompilationUnit *cUnit, MIR *mir)
         case INLINE_DOUBLE_TO_LONG_BITS:
             return handleExecuteInlineC(cUnit, mir);
     }
-    if (dvmInlineOpsExVerify(dInsn->vB)) {
-        return handleExecuteInlineC(cUnit, mir);
-    }
+    return handleExecuteInlineC(cUnit, mir);
+
     dvmCompilerAbort(cUnit);
     return false; // Not reachable; keeps compiler happy.
 }
