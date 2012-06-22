@@ -304,6 +304,7 @@ struct DvmGlobals {
     ClassObject* exNoSuchFieldException;
     ClassObject* exNoSuchMethodError;
     ClassObject* exNullPointerException;
+    ClassObject* exNumberFormatException;
     ClassObject* exOutOfMemoryError;
     ClassObject* exRuntimeException;
     ClassObject* exStackOverflowError;
