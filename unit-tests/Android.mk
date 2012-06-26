@@ -17,7 +17,7 @@
 LOCAL_PATH := $(call my-dir)
 
 test_module = dalvik-vm-unit-tests
-test_tags = eng tests
+test_tags = debug tests
 
 test_src_files = \
     dvmHumanReadableDescriptor_test.cpp \

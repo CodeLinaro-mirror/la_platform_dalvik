@@ -18,5 +18,5 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := gdbjithelper.c
 LOCAL_CFLAGS += -O0 -g
 LOCAL_MODULE := gdbjithelper
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := debug
 include $(BUILD_EXECUTABLE)
