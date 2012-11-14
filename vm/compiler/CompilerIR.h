@@ -223,8 +223,6 @@ typedef struct CompilationUnit {
     bool hasClassLiterals;              // Contains class ptrs used as literals
     bool hasLoop;                       // Contains a loop
     bool hasInvoke;                     // Contains an invoke instruction
-    bool hasMonitor;                    // Contains monitor instruction
-    bool hasVolatile;                   // Contains volatile instruction
     bool heapMemOp;                     // Mark mem ops for self verification
     bool usesLinkRegister;              // For self-verification only
     int profileCodeSize;                // Size of the profile prefix in bytes
@@ -250,6 +248,7 @@ typedef struct CompilationUnit {
 
     /* Data structure for loop analysis and optimizations */
     struct LoopAnalysis *loopAnalysis;
+    bool hasHoistedChecks;
 
     /* Map SSA names to location */
     RegLocation *regLocation;
@@ -281,6 +280,9 @@ typedef struct CompilationUnit {
     void *blockLabelList;
     bool quitLoopMode;                  // cold path/complex bytecode
     void *labelList;
+    bool setCCode;                      // gen instruction that sets ccodes
+                                        // the flag must be set before calling
+                                        // codegen function and reset upon completion
 
     void *extraData;                    // placeholder
 } CompilationUnit;
