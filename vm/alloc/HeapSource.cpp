@@ -39,7 +39,7 @@ static void trimHeaps();
 
 #define HEAP_UTILIZATION_MAX        1024
 #define DEFAULT_HEAP_UTILIZATION    512     // Range 1..HEAP_UTILIZATION_MAX
-#define HEAP_IDEAL_FREE_DEFAULT     (7.2 * 1024 * 1024)
+#define HEAP_IDEAL_FREE_DEFAULT     (2 * 1024 * 1024)
 static unsigned int heapIdeaFree = HEAP_IDEAL_FREE_DEFAULT;
 #define HEAP_MIN_FREE               ((heapIdeaFree) / 4)
 
@@ -373,12 +373,11 @@ static bool addNewHeap(HeapSource *hs)
         return false;
     }
 
-    size_t startSize = gDvm.heapStartingSize;
     heap.maximumSize = hs->growthLimit - overhead;
-    heap.concurrentStartBytes = startSize - concurrentStart;
+    heap.concurrentStartBytes = HEAP_MIN_FREE - concurrentStart;
     heap.base = base;
     heap.limit = heap.base + heap.maximumSize;
-    heap.msp = createMspace(base, startSize * 2, hs->maximumSize - overhead);
+    heap.msp = createMspace(base, HEAP_MIN_FREE, hs->maximumSize - overhead);
     if (heap.msp == NULL) {
         return false;
     }
@@ -594,12 +593,6 @@ fail:
 
 bool dvmHeapSourceStartupAfterZygote()
 {
-    //For each new application forked, we need to reset softLimit and
-    //concurrentStartBytes to be the correct expected value, not the one
-    //inherit from Zygote
-    HeapSource *hs = gHs;
-    hs->softLimit=SIZE_MAX;
-    hs->heaps[0].concurrentStartBytes = mspace_footprint(hs->heaps[0].msp) - concurrentStart;
     return gDvm.concurrentMarkSweep ? gcDaemonStartup() : true;
 }
 
