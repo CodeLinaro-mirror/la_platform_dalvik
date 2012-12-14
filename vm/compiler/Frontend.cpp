@@ -219,11 +219,11 @@ static int analyzeInlineTarget(DecodedInstruction *dalvikInsn, int attributes,
     }
 
     if (!(flags & kInstrCanReturn)) {
-        if (!(dvmCompilerDataFlowAttributes[dalvikOpcode] &
+        if (!(dvmGetDexOptAttributes(dalvikInsn) &
               DF_IS_GETTER)) {
             attributes &= ~METHOD_IS_GETTER;
         }
-        if (!(dvmCompilerDataFlowAttributes[dalvikOpcode] &
+        if (!(dvmGetDexOptAttributes(dalvikInsn) &
               DF_IS_SETTER)) {
             attributes &= ~METHOD_IS_SETTER;
         }
@@ -1355,6 +1355,30 @@ bool dvmCompileMethod(const Method *method, JitTranslationInfo *info)
     return false;
 }
 
+/*
+ * Utility funtion to check the DEX opcode for correctness
+ */
+__attribute__((weak)) bool dvmVerifyDex(CompilationUnit *cUnit, BasicBlock *curBlock,
+                                        const u2* codePtr, MIR *insn)
+{
+    bool result = false;
+    if (insn) {
+        if ((insn->dalvikInsn.opcode >= OP_NOP) &&
+            (insn->dalvikInsn.opcode < OP_UNUSED_FF)) {
+            result = true;
+        }
+    }
+    return result;
+}
+
+/* check for monitor instructions in the trace */
+__attribute__((weak)) void dvmCompilerCheckMIR(CompilationUnit *cUnit, MIR *mir)
+{
+    if (mir->dalvikInsn.opcode == OP_MONITOR_ENTER ||
+        mir->dalvikInsn.opcode == OP_MONITOR_EXIT)
+        cUnit->hasMonitor = true;
+}
+
 /* Extending the trace by crawling the code from curBlock */
 static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
 {
@@ -1392,10 +1416,13 @@ static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
         if (width == 0)
             break;
 
+        dvmVerifyDex(cUnit, curBlock, codePtr + width, insn);
         dvmCompilerAppendMIR(curBlock, insn);
 
         codePtr += width;
         int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
+
+        dvmCompilerCheckMIR(cUnit, insn);
 
         /* Stop extending the trace after seeing these instructions */
         if (flags & (kInstrCanReturn | kInstrCanSwitch | kInstrInvoke)) {
@@ -1463,12 +1490,15 @@ static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
 #endif
 
     cUnit->jitMode = kJitLoop;
+    cUnit->hasMonitor = false;
+    cUnit->hasVolatile = false;
 
     /* Initialize the block list */
     dvmInitGrowableList(&cUnit->blockList, 4);
 
     /* Initialize the PC reconstruction list */
     dvmInitGrowableList(&cUnit->pcReconstructionList, 8);
+    dvmInitGrowableList(&cUnit->pcReconstructionListExtended, 1);
 
     /* Create the default entry and exit blocks and enter them to the list */
     BasicBlock *entryBlock = dvmCompilerNewBB(kEntryBlock, numBlocks++);
@@ -1693,6 +1723,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
     /* Initialize the PC reconstruction list */
     dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
 
+    dvmInitGrowableList(&cUnit.pcReconstructionListExtended, 1);
     /* Initialize the basic block list */
     blockList = &cUnit.blockList;
     dvmInitGrowableList(blockList, 8);
@@ -1826,6 +1857,8 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
         /* The trace should never incude instruction data */
         assert(width);
         insn->width = width;
+
+        dvmVerifyDex(&cUnit, curBB, codePtr + width, insn);
         traceSize += width;
         dvmCompilerAppendMIR(curBB, insn);
         cUnit.numInsts++;
@@ -1845,6 +1878,8 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
             callsiteInfo->method = calleeMethod;
             insn->meta.callsiteInfo = callsiteInfo;
         }
+
+        dvmCompilerCheckMIR(&cUnit, insn);
 
         /* Instruction limit reached - terminate the trace here */
         if (cUnit.numInsts >= numMaxInsts) {
