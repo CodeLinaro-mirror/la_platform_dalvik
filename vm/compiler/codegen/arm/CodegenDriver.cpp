@@ -4773,9 +4773,9 @@ gen_fallthrough:
         opReg(cUnit, kOpBlx, r2);
     }
 
-    dvmCompilerApplyGlobalOptimizations(cUnit);
-
     dvmCompilerCheckStats(cUnit);
+
+    dvmCompilerApplyGlobalOptimizations(cUnit);
 
 #if defined(WITH_SELF_VERIFICATION)
     selfVerificationBranchInsertPass(cUnit);
