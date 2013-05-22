@@ -780,6 +780,7 @@ typedef struct ArmLIR {
     int aliasInfo;              // For Dalvik register & litpool disambiguation
     u8 useMask;                 // Resource mask for use
     u8 defMask;                 // Resource mask for def
+    u4* extraData;
 } ArmLIR;
 
 /* Init values when a predicted chain is initially assembled */
