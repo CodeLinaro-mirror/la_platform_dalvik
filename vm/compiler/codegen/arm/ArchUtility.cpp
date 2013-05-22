@@ -144,11 +144,14 @@ static void buildInsnString(const char *fmt, ArmLIR *lir, char* buf,
                        operand = expandImmediate(operand);
                        sprintf(tbuf,"%d [%#x]", operand, operand);
                        break;
+                   case 'q':
+                       sprintf(tbuf,"q%d",(operand - 128 - FP_REG_OFFSET) >> 2);
+                       break;
                    case 's':
                        sprintf(tbuf,"s%d",operand & FP_REG_MASK);
                        break;
                    case 'S':
-                       sprintf(tbuf,"d%d",(operand & FP_REG_MASK) >> 1);
+                       sprintf(tbuf,"d%d",(operand - FP_DOUBLE - FP_REG_OFFSET) >> 1);
                        break;
                    case 'h':
                        sprintf(tbuf,"%04x", operand);
@@ -311,7 +314,7 @@ static void printDefaultInstr(ArmLIR *lir, unsigned char *baseAddr)
 
     buildInsnString(getEncoding(lir->opcode)->name, lir, opName, baseAddr, 256);
     buildInsnString(getEncoding(lir->opcode)->fmt,  lir, buf,    baseAddr, 256);
-    ALOGD("%p (%04x): %-8s%s%s",
+    ALOGD("%p (%04x): %-12s%s%s",
          baseAddr + offset, offset, opName, buf,
          lir->flags.isNop ? "(nop)" : "");
 }
