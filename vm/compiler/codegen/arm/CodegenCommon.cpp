@@ -94,7 +94,6 @@ static inline u8 getRegMaskCommon(int reg)
     u8 seed;
     int shift;
     int regId = reg & 0x1f;
-
     /*
      * Each double register is equal to a pair of single-precision FP registers
      */
@@ -118,6 +117,16 @@ u8 dvmGetRegResourceMask(int reg)
 static inline void setupRegMask(u8 *mask, int reg)
 {
     *mask |= getRegMaskCommon(reg);
+}
+
+/* skip certain def masks */
+__attribute__((weak)) bool skipDefRegMasks(ArmLIR *lir) {
+    return false;
+}
+
+/* skip certain use masks */
+__attribute__((weak)) bool skipUseRegMasks(ArmLIR *lir) {
+    return false;
 }
 
 /*
@@ -150,12 +159,14 @@ static void setupResourceMasks(ArmLIR *lir)
         return;
     }
 
-    if (flags & REG_DEF0) {
-        setupRegMask(&lir->defMask, lir->operands[0]);
-    }
+    if (!skipDefRegMasks(lir)) {
+        if (flags & REG_DEF0) {
+            setupRegMask(&lir->defMask, lir->operands[0]);
+        }
 
-    if (flags & REG_DEF1) {
-        setupRegMask(&lir->defMask, lir->operands[1]);
+        if (flags & REG_DEF1) {
+            setupRegMask(&lir->defMask, lir->operands[1]);
+        }
     }
 
     if (flags & REG_DEF_SP) {
@@ -189,10 +200,11 @@ static void setupResourceMasks(ArmLIR *lir)
 
     if (flags & (REG_USE0 | REG_USE1 | REG_USE2 | REG_USE3)) {
         int i;
-
-        for (i = 0; i < 4; i++) {
-            if (flags & (1 << (kRegUse0 + i))) {
-                setupRegMask(&lir->useMask, lir->operands[i]);
+        if (!skipUseRegMasks(lir)) {
+            for (i = 0; i < 4; i++) {
+                if (flags & (1 << (kRegUse0 + i))) {
+                    setupRegMask(&lir->useMask, lir->operands[i]);
+                }
             }
         }
     }
