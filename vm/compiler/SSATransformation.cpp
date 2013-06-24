@@ -589,6 +589,13 @@ void dvmCompilerMethodSSATransformation(CompilationUnit *cUnit)
                                           false /* isIterative */);
 }
 
+/* brief report of DFS order of trace blocks */
+__attribute__((weak)) void dumpDFSOrder(CompilationUnit *cUnit)
+{
+    ALOGV("DFS order complete");
+    return;
+}
+
 /* Build a loop. Return true if a loop structure is successfully identified. */
 bool dvmCompilerBuildLoop(CompilationUnit *cUnit)
 {
@@ -604,6 +611,8 @@ bool dvmCompilerBuildLoop(CompilationUnit *cUnit)
 
     /* Re-compute the DFS order just for the loop */
     computeDFSOrder(cUnit);
+
+    dumpDFSOrder(cUnit);
 
     /* Re-compute the dominator info just for the loop */
     computeDominators(cUnit);
