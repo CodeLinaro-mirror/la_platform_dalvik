@@ -261,8 +261,8 @@ ifeq ($(dvm_arch),arm)
   endif
 
   ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
-    LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
-    LOCAL_SHARED_LIBRARIES += libqc-opt
+#    LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
+#    LOCAL_SHARED_LIBRARIES += libqc-opt
   endif
 endif
 
