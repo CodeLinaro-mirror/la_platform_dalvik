@@ -934,6 +934,13 @@ __attribute__((weak)) ArmEncodingMap* getEncoding(ArmOpcode opcode) {
     return encoder;
 }
 
+/* process more ARM encodings */
+__attribute__((weak)) u4 processMoreEncodings(ArmEncodingMap* encoder, int pos, u4 operand)
+{
+    assert(0);
+    return 0;
+}
+
 /*
  * Assemble the LIR into binary instruction format.  Note that we may
  * discover that pc-relative displacements may not fit the selected
@@ -1134,7 +1141,7 @@ static AssemblerStatus assembleInstructions(CompilationUnit *cUnit,
                 case kFmtDfp: {
                     assert(DOUBLEREG(operand));
                     assert((operand & 0x1) == 0);
-                    int regName = (operand & FP_REG_MASK) >> 1;
+                    int regName = (operand - FP_DOUBLE - FP_REG_OFFSET) / 2;
                     /* Snag the 1-bit slice and position it */
                     value = ((regName & 0x10) >> 4) <<
                             encoder->fieldLoc[i].end;
@@ -1169,7 +1176,8 @@ static AssemblerStatus assembleInstructions(CompilationUnit *cUnit,
                     bits |= value;
                     break;
                 default:
-                    assert(0);
+                    bits |= processMoreEncodings(encoder, i, operand);
+                    break;
             }
         }
         if (encoder->size == 2) {
