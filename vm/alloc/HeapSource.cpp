@@ -48,7 +48,7 @@ static unsigned int heapIdeaFree = HEAP_IDEAL_FREE_DEFAULT;
 /* How long to wait after a GC before performing a heap trim
  * operation to reclaim unused pages.
  */
-#define HEAP_TRIM_IDLE_TIME_MS (5 * 1000)
+#define HEAP_TRIM_IDLE_TIME_MS (500)
 
 /* Start a concurrent collection when free memory falls under this
  * many bytes.
