@@ -1322,6 +1322,21 @@ static void busCatcher(int signum, siginfo_t* info, void* context)
     signal(SIGBUS, SIG_DFL);
 }
 
+static void hupCatcher(int signum, siginfo_t* info, void* context)
+{
+    ALOGE("Caught a SIGHUP (%d)", signum);
+}
+
+static void configSignals()
+{
+    struct sigaction sa;
+    int cc;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = hupCatcher;
+    sa.sa_flags = SA_SIGINFO;
+    cc = sigaction(SIGHUP, &sa, NULL);
+    assert(cc == 0);
+}
 /*
  * Configure signals.  We need to block SIGQUIT so that the signal only
  * reaches the dump-stack-trace thread.
@@ -1430,6 +1445,8 @@ std::string dvmStartup(int argc, const char* const argv[],
     /* configure signal handling */
     if (!gDvm.reduceSignals)
         blockSignals();
+
+    configSignals();
 
     /* verify system page size */
     if (sysconf(_SC_PAGESIZE) != SYSTEM_PAGE_SIZE) {
