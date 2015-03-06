@@ -231,6 +231,7 @@ LOCAL_C_INCLUDES += \
 	dalvik/vm \
 	external/zlib \
 	libcore/include \
+	system/core/libprocessgroup/include \
 
 MTERP_ARCH_KNOWN := false
 
@@ -269,6 +270,11 @@ ifeq ($(dvm_arch),arm)
     LOCAL_SHARED_LIBRARIES += libqc-opt
     LOCAL_CFLAGS += -DHAVE_HALFWORD_ATOMIC_MEMMOVE
   endif
+
+  ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),arm arm64))
+    LOCAL_SHARED_LIBRARIES += libprocessgroup
+  endif
+
 endif
 
 ifeq ($(dvm_arch),mips)

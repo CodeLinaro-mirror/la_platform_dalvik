@@ -38,6 +38,7 @@
 #include <sched.h>
 #include <sys/utsname.h>
 #include <sys/capability.h>
+#include <processgroup/processgroup.h>
 
 #ifdef HAVE_ANDROID_OS
 #include <cutils/properties.h>
@@ -591,6 +592,11 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
                     dvmAbort();
                 }
             }
+        }
+        int rc = createProcessGroup(uid, getpid());
+        if (rc != 0) {
+            ALOGE("createProcessGroup(%d, %d) failed: %s", uid, pid, strerror(-rc));
+            dvmAbort();
         }
 
 #endif /* HAVE_ANDROID_OS */
