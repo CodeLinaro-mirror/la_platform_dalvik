@@ -21,6 +21,7 @@ import com.android.dx.cf.iface.MethodList;
 import com.android.dx.rop.code.AccessFlags;
 import com.android.dx.rop.code.FillArrayDataInsn;
 import com.android.dx.rop.code.Insn;
+import com.android.dx.rop.code.InvokePolymorphicInsn;
 import com.android.dx.rop.code.PlainCstInsn;
 import com.android.dx.rop.code.PlainInsn;
 import com.android.dx.rop.code.RegOps;
@@ -606,8 +607,11 @@ import java.util.ArrayList;
             returns = true;
         } else if (cst != null) {
             if (canThrow) {
-                insn =
-                    new ThrowingCstInsn(rop, pos, sources, catches, cst);
+                if (rop.getOpcode() == RegOps.INVOKE_POLYMORPHIC) {
+                    insn = makeInvokePolymorphicInsn(rop, pos, sources, catches, cst);
+                } else {
+                    insn = new ThrowingCstInsn(rop, pos, sources, catches, cst);
+                }
                 catchesUsed = true;
                 primarySuccessorIndex = catches.size();
             } else {
@@ -762,7 +766,7 @@ import java.util.ArrayList;
     /**
      * Gets the register opcode for the given Java opcode.
      *
-     * @param jop {@code >= 0;} the Java opcode
+     * @param jop {@code jop >= 0;} the Java opcode
      * @param cst {@code null-ok;} the constant argument, if any
      * @return {@code >= 0;} the corresponding register opcode
      */
@@ -949,6 +953,12 @@ import java.util.ArrayList;
                         }
                     }
                 }
+                // If the method reference is a signature polymorphic method
+                // substitute invoke-polymorphic for invoke-virtual. This only
+                // affects MethodHandle.invoke and MethodHandle.invokeExact.
+                if (ref.isSignaturePolymorphic()) {
+                    return RegOps.INVOKE_POLYMORPHIC;
+                }
                 return RegOps.INVOKE_VIRTUAL;
             }
             case ByteOps.INVOKESPECIAL: {
@@ -957,6 +967,10 @@ import java.util.ArrayList;
                  * INVOKE_DIRECT or INVOKE_SUPER. See vmspec-2 section 6
                  * on "invokespecial" as well as section 4.8.2 (7th
                  * bullet point) for the gory details.
+                 */
+                /* TODO: Consider checking that invoke-special target
+                 * method is private, or constructor since otherwise ART
+                 * verifier will reject it.
                  */
                 CstMethodRef ref = (CstMethodRef) cst;
                 if (ref.isInstanceInit() ||
@@ -999,5 +1013,11 @@ import java.util.ArrayList;
         }
 
         throw new RuntimeException("shouldn't happen");
+    }
+
+    private Insn makeInvokePolymorphicInsn(Rop rop, SourcePosition pos, RegisterSpecList sources,
+        TypeList catches, Constant cst) {
+        CstMethodRef cstMethodRef = (CstMethodRef) cst;
+        return new InvokePolymorphicInsn(rop, pos, sources, catches, cstMethodRef);
     }
 }
